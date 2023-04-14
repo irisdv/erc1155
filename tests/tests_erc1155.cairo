@@ -81,10 +81,12 @@ fn test_constructor() {
     let owner = ERC1155::owner();
     assert(owner == account, 'Owner is not account');
 
+    let id = 1;
     let mut _uri = ERC1155::uri(1.into());
-    assert(_uri.len() == 2, 'URI length is not 2');
+    assert(_uri.len() == 3, 'URI length is not 3');
     assert(_uri.pop_front().unwrap() == uri.pop_front().unwrap(), 'URI is not correct');
     assert(_uri.pop_front().unwrap() == uri.pop_front().unwrap(), 'URI is not correct');
+    assert(_uri.pop_front().unwrap() == 1, 'Wrong tokenid');
 }
 
 #[test]

@@ -19,6 +19,18 @@ mod ERC1155 {
     use gas::withdraw_gas_all;
     use gas::get_builtin_costs;
 
+    use erc1155::interfaces::IERC1155ReceiverDispatcher;
+    use erc1155::interfaces::IERC1155ReceiverDispatcherTrait;
+    use erc1155::interfaces::IERC165Dispatcher;
+    use erc1155::interfaces::IERC165DispatcherTrait;
+
+    const IERC1155_ID: felt252 = 0xd9b67a26;
+    const IERC1155_METADATA_ID: felt252 = 0x0e89341c;
+    const IERC1155_RECEIVER_ID: felt252 = 0x4e2312e0;
+    const ON_ERC1155_RECEIVED_SELECTOR: felt252 = 0xf23a6e61;
+    const ON_ERC1155_BATCH_RECEIVED_SELECTOR: felt252 = 0xbc197c81;
+    const IACCOUNT_ID: felt252 = 0xa66bd575;
+
     struct Storage {
         contract_owner: ContractAddress,
         balances: LegacyMap::<(ContractAddress, u256), u256>,
@@ -28,13 +40,12 @@ mod ERC1155 {
 
     #[event]
     fn TransferSingle(
-        operator: ContractAddress, 
+        operator: ContractAddress,
         from_: ContractAddress,
         to: ContractAddress,
         id: u256,
         value: u256,
-    ) {
-    }
+    ) {}
 
     #[event]
     fn TransferBatch(
@@ -43,16 +54,13 @@ mod ERC1155 {
         to: ContractAddress,
         ids: Array::<u256>,
         values: Array::<u256>,
-    ) {
-    }
+    ) {}
 
     #[event]
-    fn ApprovalForAll(account: ContractAddress, operator: ContractAddress, approved: bool) {
-    }
+    fn ApprovalForAll(account: ContractAddress, operator: ContractAddress, approved: bool) {}
 
     #[event]
-    fn URI(value: Array::<felt252>, id: u256) {
-    }
+    fn URI(value: Array::<felt252>, id: u256) {}
 
     #[constructor]
     fn constructor(_owner: ContractAddress, uri: Array::<felt252>) {
@@ -74,7 +82,7 @@ mod ERC1155 {
             if i == uri.len() {
                 break ();
             }
-            
+
             match uri.get(i) {
                 Option::Some(value) => {
                     token_uris::write(i, *value.unbox());
@@ -132,6 +140,7 @@ mod ERC1155 {
             let j = i + 1_u32;
             i = j;
         };
+        // uri.append(id.into());
         uri
     }
 
@@ -160,7 +169,9 @@ mod ERC1155 {
             if _accounts.len() == 0_u32 {
                 break ();
             }
-            let balance = balances::read((_accounts.pop_front().unwrap(), _ids.pop_front().unwrap()));
+            let balance = balances::read(
+                (_accounts.pop_front().unwrap(), _ids.pop_front().unwrap())
+            );
             batch_balance.append(balance);
         };
         batch_balance
@@ -192,7 +203,9 @@ mod ERC1155 {
     }
 
     #[external]
-    fn safe_transfer_from(from_: ContractAddress, to: ContractAddress, id: u256, value: u256) -> bool {
+    fn safe_transfer_from(
+        from_: ContractAddress, to: ContractAddress, id: u256, value: u256
+    ) -> bool {
         assert(!to.is_zero(), 'transfer to the zero address');
 
         assert_owner_or_approved(from_);
@@ -206,12 +219,18 @@ mod ERC1155 {
 
         let operator = get_caller_address();
         TransferSingle(operator, from_, to, id, value);
-
+        // todo add data 
+        _do_safe_transfer_acceptance_check(
+            operator, from_, to, id, value, ArrayTrait::<felt252>::new()
+        );
         true
     }
 
+
     #[external]
-    fn safe_batch_transfer_from(from_: ContractAddress, to: ContractAddress, ids: Array<u256>, values: Array<u256>) -> bool {
+    fn safe_batch_transfer_from(
+        from_: ContractAddress, to: ContractAddress, ids: Array<u256>, values: Array<u256>
+    ) -> bool {
         let operator = get_caller_address();
         assert(!operator.is_zero(), 'cannot call transfer from 0');
 
@@ -239,7 +258,7 @@ mod ERC1155 {
         };
 
         TransferBatch(operator, from_, to, ids, values);
-        true    
+        true
     }
 
     #[external]
@@ -253,6 +272,15 @@ mod ERC1155 {
         // Emit events
         let operator = get_caller_address();
         TransferSingle(operator, starknet::contract_address_const::<0>(), to, id, value);
+        // todo update DATA array in arg
+        _do_safe_transfer_acceptance_check(
+            operator,
+            starknet::contract_address_const::<0>(),
+            to,
+            id,
+            value,
+            ArrayTrait::<felt252>::new()
+        );
         true
     }
 
@@ -338,13 +366,33 @@ mod ERC1155 {
     //
     // Private
     //
-    fn _add_to_receiver(
-        id: u256, 
-        value: u256, 
-        receiver: ContractAddress
-    ) {
+    fn _add_to_receiver(id: u256, value: u256, receiver: ContractAddress) {
         let receiver_balance = balances::read((receiver, id));
         let new_balance = receiver_balance + value;
         balances::write((receiver, id), new_balance);
+    }
+
+    fn _do_safe_transfer_acceptance_check(
+        operator: ContractAddress,
+        from_: ContractAddress,
+        to: ContractAddress,
+        id: u256,
+        value: u256,
+        data: Array<felt252>
+    ) {
+        let is_supported: bool = IERC165Dispatcher {
+            contract_address: to
+        }.supports_interface(IERC1155_RECEIVER_ID);
+        if is_supported {
+            let selector = IERC1155ReceiverDispatcher {
+                contract_address: to
+            }.on_erc1155_received(operator, from_, id, value, data);
+            assert(selector == ON_ERC1155_RECEIVED_SELECTOR, 'ERC1155Receiver rejected tokens');
+        } else {
+            assert(
+                IERC165Dispatcher { contract_address: to }.supports_interface(IACCOUNT_ID),
+                'transfer to non-ERC1155Receiver'
+            );
+        }
     }
 }
