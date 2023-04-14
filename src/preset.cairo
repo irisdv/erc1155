@@ -9,8 +9,6 @@ mod ERC1155 {
     use clone::Clone;
     use array::ArrayTCloneImpl;
 
-    // use erc1155::serde;
-
     use starknet::get_caller_address;
     use starknet::contract_address_const;
     use starknet::ContractAddress;
@@ -25,7 +23,7 @@ mod ERC1155 {
         contract_owner: ContractAddress,
         balances: LegacyMap::<(ContractAddress, u256), u256>,
         operator_approvals: LegacyMap::<(ContractAddress, ContractAddress), bool>,
-        token_uris: LegacyMap::<usize, felt252>,
+        token_uris: LegacyMap::<u32, felt252>
     }
 
     #[event]
@@ -57,54 +55,38 @@ mod ERC1155 {
     }
 
     #[constructor]
-    fn constructor(_owner: ContractAddress, uri: felt252) {
+    fn constructor(_owner: ContractAddress, uri: Array::<felt252>) {
         contract_owner::write(_owner);
-        // initializer(uri);
+        _set_uri(uri);
     }
 
-    // #[external]
-    // fn initializer(uri: Span<felt252>) {
-    //     _set_uri(0_u32, uri);
-    // }
-
-    // fn _set_uri(index: u32, uri: Span<felt252>) {
-    //     loop {
-    //         match gas::withdraw_gas_all(get_builtin_costs()) {
-    //             Option::Some(_) => {},
-    //             Option::None(_) => {
-    //                 let mut data = ArrayTrait::new();
-    //                 data.append('Out of gas');
-    //                 panic(data);
-    //             },
-    //         }
-    //         let my_val = uri.get(index);
-    //         match my_val {
-    //             Option::Some(value) => {
-    //                 token_uris::write(index, *value.unbox());
-    //                 if uri.len() == 0_u32 {
-    //                     break ();
-    //                 }
-    //             },
-    //             Option::None(_) => {
-    //                 break ();
-    //             },
-    //         }
-    //     };
-
-    //     // let my_val = uri.get(index);
-    //     // match my_val {
-    //     //     Option::Some(value) => {
-    //     //         token_uris::write(index, *value.unbox());
-    //     //         if uri.len() == 0_u32 {
-    //     //             return ();
-    //     //         }
-    //     //         return _set_uri(index + 1_u32, uri);
-    //     //     },
-    //     //     Option::None(_) => {
-    //     //         return ();
-    //     //     },
-    //     // }
-    // }
+    fn _set_uri(uri: Array<felt252>) {
+        let mut i = 0_u32;
+        loop {
+            match gas::withdraw_gas_all(get_builtin_costs()) {
+                Option::Some(_) => {},
+                Option::None(_) => {
+                    let mut data = ArrayTrait::new();
+                    data.append('Out of gas');
+                    panic(data);
+                },
+            }
+            if i == uri.len() {
+                break ();
+            }
+            
+            match uri.get(i) {
+                Option::Some(value) => {
+                    token_uris::write(i, *value.unbox());
+                },
+                Option::None(_) => {
+                    break ();
+                },
+            }
+            let j = i + 1_u32;
+            i = j;
+        };
+    }
 
     //
     // Modifiers
@@ -129,10 +111,29 @@ mod ERC1155 {
     // Getters
     //
 
-    // #[view]
-    // fn uri(id: u256) -> felt256 ou array de felt {
-    //     return uri of tokenId
-    // }
+    #[view]
+    fn uri(id: u256) -> Array::<felt252> {
+        let mut uri = ArrayTrait::<felt252>::new();
+        let mut i = 0_u32;
+        loop {
+            match gas::withdraw_gas_all(get_builtin_costs()) {
+                Option::Some(_) => {},
+                Option::None(_) => {
+                    let mut data = ArrayTrait::new();
+                    data.append('Out of gas');
+                    panic(data);
+                },
+            }
+            let value = token_uris::read(i);
+            if (value.is_zero()) {
+                break ();
+            }
+            uri.append(value);
+            let j = i + 1_u32;
+            i = j;
+        };
+        uri
+    }
 
     #[view]
     fn balance_of(account: ContractAddress, id: u256) -> u256 {

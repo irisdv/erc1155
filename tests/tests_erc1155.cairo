@@ -24,7 +24,11 @@ fn setup() -> ContractAddress {
     let account: ContractAddress = contract_address_const::<1>();
     set_caller_address(account);
 
-    ERC1155::constructor(account, 'uri');
+    let mut uri = ArrayTrait::<felt252>::new();
+    uri.append('ipfs://bafybeigdyrzt5sfp7udm7hu');
+    uri.append('6nf3efuylqabf3oclgtqy55fbzdi');
+
+    ERC1155::constructor(account, uri);
     account
 }
 
@@ -68,10 +72,19 @@ fn test_constructor() {
     let account: ContractAddress = contract_address_const::<1>();
     set_caller_address(account);
 
-    ERC1155::constructor(account, 'uri');
+    let mut uri = ArrayTrait::<felt252>::new();
+    uri.append('ipfs://bafybeigdyrzt5sfp7udm7hu');
+    uri.append('6nf3efuylqabf3oclgtqy55fbzdi');
+
+    ERC1155::constructor(account, uri.clone());
 
     let owner = ERC1155::owner();
     assert(owner == account, 'Owner is not account');
+
+    let mut _uri = ERC1155::uri(1.into());
+    assert(_uri.len() == 2, 'URI length is not 2');
+    assert(_uri.pop_front().unwrap() == uri.pop_front().unwrap(), 'URI is not correct');
+    assert(_uri.pop_front().unwrap() == uri.pop_front().unwrap(), 'URI is not correct');
 }
 
 #[test]
