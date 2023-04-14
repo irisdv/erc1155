@@ -1,0 +1,10 @@
+[package]
+name = "erc1155"
+version = "0.2.0"
+
+# See more keys and their definitions at https://docs.swmansion.com/scarb/docs/reference/manifest
+
+[dependencies]
+# foo = { path = "vendor/foo" }
+
+[[target.starknet-contract]]

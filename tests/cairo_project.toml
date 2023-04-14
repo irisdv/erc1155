@@ -1,0 +1,3 @@
+[crate_roots]
+erc1155 = "../src"
+tests="."
