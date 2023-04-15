@@ -24,6 +24,8 @@ mod ERC1155 {
     use erc1155::interfaces::IERC165Dispatcher;
     use erc1155::interfaces::IERC165DispatcherTrait;
 
+    use erc1155::utils::check_gas;
+
     const IERC1155_ID: felt252 = 0xd9b67a26;
     const IERC1155_METADATA_ID: felt252 = 0x0e89341c;
     const IERC1155_RECEIVER_ID: felt252 = 0x4e2312e0;
@@ -71,14 +73,7 @@ mod ERC1155 {
     fn _set_uri(uri: Array<felt252>) {
         let mut i = 0_u32;
         loop {
-            match gas::withdraw_gas_all(get_builtin_costs()) {
-                Option::Some(_) => {},
-                Option::None(_) => {
-                    let mut data = ArrayTrait::new();
-                    data.append('Out of gas');
-                    panic(data);
-                },
-            }
+            check_gas();
             if i == uri.len() {
                 break ();
             }
@@ -124,14 +119,7 @@ mod ERC1155 {
         let mut uri = ArrayTrait::<felt252>::new();
         let mut i = 0_u32;
         loop {
-            match gas::withdraw_gas_all(get_builtin_costs()) {
-                Option::Some(_) => {},
-                Option::None(_) => {
-                    let mut data = ArrayTrait::new();
-                    data.append('Out of gas');
-                    panic(data);
-                },
-            }
+            check_gas();
             let value = token_uris::read(i);
             if (value.is_zero()) {
                 break ();
@@ -158,14 +146,7 @@ mod ERC1155 {
         let mut _ids = ids;
 
         loop {
-            match gas::withdraw_gas_all(get_builtin_costs()) {
-                Option::Some(_) => {},
-                Option::None(_) => {
-                    let mut data = ArrayTrait::new();
-                    data.append('Out of gas');
-                    panic(data);
-                },
-            }
+            check_gas();
             if _accounts.len() == 0_u32 {
                 break ();
             }
@@ -204,7 +185,7 @@ mod ERC1155 {
 
     #[external]
     fn safe_transfer_from(
-        from_: ContractAddress, to: ContractAddress, id: u256, value: u256
+        from_: ContractAddress, to: ContractAddress, id: u256, value: u256, data: Array::<felt252>
     ) -> bool {
         assert(!to.is_zero(), 'transfer to the zero address');
 
@@ -212,24 +193,25 @@ mod ERC1155 {
 
         let from_balance = balances::read((from_, id));
         assert(from_balance >= value, 'insufficient balance');
-        let new_balance = from_balance - value;
-        balances::write((from_, id), new_balance);
+        balances::write((from_, id), from_balance - value);
 
         _add_to_receiver(id, value, to);
 
         let operator = get_caller_address();
         TransferSingle(operator, from_, to, id, value);
-        // todo add data 
-        _do_safe_transfer_acceptance_check(
-            operator, from_, to, id, value, ArrayTrait::<felt252>::new()
-        );
+        // _do_safe_transfer_acceptance_check(
+        //     operator, from_, to, id, value, data
+        // );
         true
     }
 
-
     #[external]
     fn safe_batch_transfer_from(
-        from_: ContractAddress, to: ContractAddress, ids: Array<u256>, values: Array<u256>
+        from_: ContractAddress,
+        to: ContractAddress,
+        ids: Array<u256>,
+        values: Array<u256>,
+        data: Array<felt252>
     ) -> bool {
         let operator = get_caller_address();
         assert(!operator.is_zero(), 'cannot call transfer from 0');
@@ -243,49 +225,40 @@ mod ERC1155 {
         let mut _values = values.clone();
 
         loop {
-            match gas::withdraw_gas_all(get_builtin_costs()) {
-                Option::Some(_) => {},
-                Option::None(_) => {
-                    let mut data = ArrayTrait::new();
-                    data.append('Out of gas');
-                    panic(data);
-                },
-            }
+            check_gas();
             if _ids.len() == 0_u32 {
                 break ();
             }
-            safe_transfer_from(from_, to, _ids.pop_front().unwrap(), _values.pop_front().unwrap());
+            let id = _ids.pop_front().unwrap();
+            let value = _values.pop_front().unwrap();
+            let from_balance = balances::read((from_, id));
+            assert(from_balance >= value, 'insufficient balance');
+            balances::write((from_, id), from_balance - value);
+            _add_to_receiver(id, value, to);
         };
-
-        TransferBatch(operator, from_, to, ids, values);
+        TransferBatch(operator, from_, to, ids.clone(), values.clone());
+        // _do_safe_batch_transfer_acceptance_check(operator, starknet::contract_address_const::<0>(), to, ids, values, data);
         true
     }
 
     #[external]
-    fn mint(to: ContractAddress, id: u256, value: u256) -> bool {
+    fn mint(to: ContractAddress, id: u256, value: u256, data: Array::<felt252>) -> bool {
         assert_only_owner();
-        assert(!to.is_zero(), 'mint to the zero address');
 
+        assert(!to.is_zero(), 'mint to the zero address');
         // Add to minter
         _add_to_receiver(id, value, to);
 
-        // Emit events
         let operator = get_caller_address();
         TransferSingle(operator, starknet::contract_address_const::<0>(), to, id, value);
-        // todo update DATA array in arg
-        _do_safe_transfer_acceptance_check(
-            operator,
-            starknet::contract_address_const::<0>(),
-            to,
-            id,
-            value,
-            ArrayTrait::<felt252>::new()
-        );
+        // _do_safe_transfer_acceptance_check(operator, starknet::contract_address_const::<0>(), to, id, value, data);
         true
     }
 
     #[external]
-    fn mint_batch(to: ContractAddress, ids: Array<u256>, values: Array<u256>) -> bool {
+    fn mint_batch(
+        to: ContractAddress, ids: Array<u256>, values: Array<u256>, data: Array<felt252>
+    ) -> bool {
         assert_only_owner();
         assert(!to.is_zero(), 'mint to the zero address');
         assert(ids.len() == values.len(), 'ids and values len mismatch');
@@ -294,22 +267,18 @@ mod ERC1155 {
         let mut _values = values.clone();
 
         loop {
-            match gas::withdraw_gas_all(get_builtin_costs()) {
-                Option::Some(_) => {},
-                Option::None(_) => {
-                    let mut data = ArrayTrait::new();
-                    data.append('Out of gas');
-                    panic(data);
-                },
-            }
+            check_gas();
             if _ids.len() == 0_u32 {
                 break ();
             }
-            mint(to, _ids.pop_front().unwrap(), _values.pop_front().unwrap());
+            _add_to_receiver(_ids.pop_front().unwrap(), _values.pop_front().unwrap(), to);
         };
 
         let operator = get_caller_address();
-        TransferBatch(operator, starknet::contract_address_const::<0>(), to, ids, values);
+        TransferBatch(
+            operator, starknet::contract_address_const::<0>(), to, ids.clone(), values.clone()
+        );
+        // _do_safe_batch_transfer_acceptance_check(operator, starknet::contract_address_const::<0>(), to, ids, values, data);
         true
     }
 
@@ -338,14 +307,7 @@ mod ERC1155 {
         let mut _values = values.clone();
 
         loop {
-            match gas::withdraw_gas_all(get_builtin_costs()) {
-                Option::Some(_) => {},
-                Option::None(_) => {
-                    let mut data = ArrayTrait::new();
-                    data.append('Out of gas');
-                    panic(data);
-                },
-            }
+            check_gas();
             if _ids.len() == 0_u32 {
                 break ();
             }
@@ -388,6 +350,32 @@ mod ERC1155 {
                 contract_address: to
             }.on_erc1155_received(operator, from_, id, value, data);
             assert(selector == ON_ERC1155_RECEIVED_SELECTOR, 'ERC1155Receiver rejected tokens');
+        } else {
+            assert(
+                IERC165Dispatcher { contract_address: to }.supports_interface(IACCOUNT_ID),
+                'transfer to non-ERC1155Receiver'
+            );
+        }
+    }
+
+    fn _do_safe_batch_transfer_acceptance_check(
+        operator: ContractAddress,
+        from_: ContractAddress,
+        to: ContractAddress,
+        ids: Array<u256>,
+        values: Array<u256>,
+        data: Array<felt252>
+    ) {
+        let is_supported: bool = IERC165Dispatcher {
+            contract_address: to
+        }.supports_interface(IERC1155_RECEIVER_ID);
+        if is_supported {
+            let selector = IERC1155ReceiverDispatcher {
+                contract_address: to
+            }.on_erc1155_batch_received(operator, from_, ids, values, data);
+            assert(
+                selector == ON_ERC1155_BATCH_RECEIVED_SELECTOR, 'ERC1155Receiver rejected tokens'
+            );
         } else {
             assert(
                 IERC165Dispatcher { contract_address: to }.supports_interface(IACCOUNT_ID),

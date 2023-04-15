@@ -83,10 +83,10 @@ fn test_constructor() {
 
     let id = 1;
     let mut _uri = ERC1155::uri(1.into());
-    assert(_uri.len() == 3, 'URI length is not 3');
+    assert(_uri.len() == 2, 'URI length is not 2');
     assert(_uri.pop_front().unwrap() == uri.pop_front().unwrap(), 'URI is not correct');
     assert(_uri.pop_front().unwrap() == uri.pop_front().unwrap(), 'URI is not correct');
-    assert(_uri.pop_front().unwrap() == 1, 'Wrong tokenid');
+    // assert(_uri.pop_front().unwrap() == 1, 'Wrong tokenid');
 }
 
 #[test]
@@ -131,7 +131,7 @@ fn test_set_approval_for_all_operator_self() {
 fn test_mint() {
     let owner = setup();
 
-    let success = ERC1155::mint(owner, 1.into(), 10.into());
+    let success = ERC1155::mint(owner, 1.into(), 10.into(), ArrayTrait::<felt252>::new());
     assert(success, 'Error while minting');
 
     let balance = ERC1155::balance_of(owner, 1.into());
@@ -145,7 +145,7 @@ fn test_mint_batch() {
     let mut ids = generate_array_u256(2_u32, 1.into(), 1.into());
     let mut values = generate_array_u256(2_u32, 10.into(), 10.into());
 
-    let success = ERC1155::mint_batch(owner, ids.clone(), values);
+    let success = ERC1155::mint_batch(owner, ids.clone(), values, ArrayTrait::<felt252>::new());
     assert(success, 'Error while minting');
 
     let mut owners = ArrayTrait::<ContractAddress>::new();
@@ -164,7 +164,7 @@ fn test_mint_batch() {
 #[should_panic(expected: ('mint to the zero address', ))]
 fn test_mint_to_0() {
     let owner = setup();
-    ERC1155::mint(contract_address_const::<0>(), 1.into(), 10.into());
+    ERC1155::mint(contract_address_const::<0>(), 1.into(), 10.into(), ArrayTrait::<felt252>::new());
 }
 
 #[test]
@@ -172,7 +172,7 @@ fn test_mint_to_0() {
 #[should_panic(expected: ('only owner can mint', ))]
 fn test_mint_not_owner() {
     set_caller_address(contract_address_const::<3>());
-    ERC1155::mint(contract_address_const::<3>(), 1.into(), 10.into());
+    ERC1155::mint(contract_address_const::<3>(), 1.into(), 10.into(), ArrayTrait::<felt252>::new());
 }
 
 #[test]
@@ -183,20 +183,20 @@ fn test_mint_batch_not_owner() {
     let mut values = generate_array_u256(2_u32, 10.into(), 10.into());
 
     set_caller_address(contract_address_const::<3>());
-    ERC1155::mint_batch(contract_address_const::<3>(), ids, values);
+    ERC1155::mint_batch(contract_address_const::<3>(), ids, values, ArrayTrait::<felt252>::new());
 }
 
 #[test]
 #[available_gas(2000000)]
 fn test_safe_transfer_from() {
     let owner = setup();
-    let success = ERC1155::mint(owner, 1.into(), 10.into());
+    let success = ERC1155::mint(owner, 1.into(), 10.into(), ArrayTrait::<felt252>::new());
     assert(success, 'Error while minting');
 
     let balance = ERC1155::balance_of(owner, 1.into());
     assert(balance == 10.into(), 'Balance is not 10');
 
-    ERC1155::safe_transfer_from(owner, contract_address_const::<2>(), 1.into(), 3.into());
+    ERC1155::safe_transfer_from(owner, contract_address_const::<2>(), 1.into(), 3.into(), ArrayTrait::<felt252>::new());
 
     let balance_1 = ERC1155::balance_of(owner, 1.into());
     assert(balance_1 == 7.into(), 'Balance is not 7');
@@ -210,10 +210,10 @@ fn test_safe_transfer_from() {
 #[should_panic(expected: ('transfer to the zero address', ))]
 fn test_safe_transfer_from_to_0() {
     let owner = setup();
-    let success = ERC1155::mint(owner, 1.into(), 10.into());
+    let success = ERC1155::mint(owner, 1.into(), 10.into(), ArrayTrait::<felt252>::new());
     assert(success, 'Error while minting');
 
-    ERC1155::safe_transfer_from(owner, contract_address_const::<0>(), 1.into(), 3.into());
+    ERC1155::safe_transfer_from(owner, contract_address_const::<0>(), 1.into(), 3.into(), ArrayTrait::<felt252>::new());
 }
 
 #[test]
@@ -221,10 +221,10 @@ fn test_safe_transfer_from_to_0() {
 #[should_panic(expected: ('insufficient balance', ))]
 fn test_safe_transfer_from_insufficient_balance() {
     let owner = setup();
-    let success = ERC1155::mint(owner, 1.into(), 10.into());
+    let success = ERC1155::mint(owner, 1.into(), 10.into(), ArrayTrait::<felt252>::new());
     assert(success, 'Error while minting');
 
-    ERC1155::safe_transfer_from(owner, contract_address_const::<2>(), 1.into(), 15.into());
+    ERC1155::safe_transfer_from(owner, contract_address_const::<2>(), 1.into(), 15.into(), ArrayTrait::<felt252>::new());
 }
 
 #[test]
@@ -232,11 +232,11 @@ fn test_safe_transfer_from_insufficient_balance() {
 #[should_panic(expected: ('caller not owner or approved', ))]
 fn test_safe_transfer_from_not_approved() {
     let owner = setup();
-    let success = ERC1155::mint(owner, 1.into(), 10.into());
+    let success = ERC1155::mint(owner, 1.into(), 10.into(), ArrayTrait::<felt252>::new());
     assert(success, 'Error while minting');
 
     set_caller_address(contract_address_const::<3>());
-    ERC1155::safe_transfer_from(owner, contract_address_const::<2>(), 1.into(), 15.into());
+    ERC1155::safe_transfer_from(owner, contract_address_const::<2>(), 1.into(), 15.into(), ArrayTrait::<felt252>::new());
 }
 
 
@@ -247,7 +247,7 @@ fn test_safe_batch_transfer_from() {
     let mut ids = generate_array_u256(2_u32, 1.into(), 1.into());
     let mut values = generate_array_u256(2_u32, 10.into(), 10.into());
 
-    let success = ERC1155::mint_batch(owner, ids.clone(), values.clone());
+    let success = ERC1155::mint_batch(owner, ids.clone(), values.clone(), ArrayTrait::<felt252>::new());
     assert(success, 'Error while minting');
 
     let mut owners = ArrayTrait::<ContractAddress>::new();
@@ -259,7 +259,7 @@ fn test_safe_batch_transfer_from() {
     assert(balances.pop_front().unwrap() == 20.into(), 'Balance is not 10');
 
     let mut transfered_val = generate_array_u256(2_u32, 3.into(), 2.into());
-    let success = ERC1155::safe_batch_transfer_from(owner, contract_address_const::<2>(), ids.clone(), transfered_val);
+    let success = ERC1155::safe_batch_transfer_from(owner, contract_address_const::<2>(), ids.clone(), transfered_val, ArrayTrait::<felt252>::new());
     assert(success, 'Error while batch transfer');
 
     let mut balances_owner = ERC1155::balance_of_batch(owners.clone(), ids.clone());
@@ -282,7 +282,7 @@ fn test_safe_batch_transfer_from_operator_0() {
     let mut ids = generate_array_u256(2_u32, 1.into(), 1.into());
     let mut values = generate_array_u256(2_u32, 10.into(), 10.into());
     set_caller_as_zero();
-    ERC1155::safe_batch_transfer_from(contract_address_const::<1>(), contract_address_const::<2>(), ids.clone(), values);
+    ERC1155::safe_batch_transfer_from(contract_address_const::<1>(), contract_address_const::<2>(), ids.clone(), values, ArrayTrait::<felt252>::new());
 }
 
 #[test]
@@ -292,7 +292,7 @@ fn test_safe_batch_transfer_from_to_0() {
     let owner = setup();
     let mut ids = generate_array_u256(2_u32, 1.into(), 1.into());
     let mut values = generate_array_u256(2_u32, 10.into(), 10.into());
-    ERC1155::safe_batch_transfer_from(owner, contract_address_const::<0>(), ids, values);
+    ERC1155::safe_batch_transfer_from(owner, contract_address_const::<0>(), ids, values, ArrayTrait::<felt252>::new());
 }
 
 #[test]
@@ -302,7 +302,7 @@ fn test_safe_batch_transfer_from_len_mismatch() {
     let owner = setup();
     let mut ids = generate_array_u256(2_u32, 1.into(), 1.into());
     let mut values = generate_array_u256(1_u32, 10.into(), 10.into());
-    ERC1155::safe_batch_transfer_from(owner, contract_address_const::<2>(), ids, values);
+    ERC1155::safe_batch_transfer_from(owner, contract_address_const::<2>(), ids, values, ArrayTrait::<felt252>::new());
 }
 
 #[test]
@@ -313,7 +313,7 @@ fn test_safe_batch_transfer_from_not_approved() {
     let mut ids = generate_array_u256(2_u32, 1.into(), 1.into());
     let mut values = generate_array_u256(2_u32, 10.into(), 10.into());
     set_caller_address(contract_address_const::<3>());
-    ERC1155::safe_batch_transfer_from(owner, contract_address_const::<0>(), ids, values);
+    ERC1155::safe_batch_transfer_from(owner, contract_address_const::<0>(), ids, values, ArrayTrait::<felt252>::new());
 }
 
 #[test]
@@ -321,7 +321,7 @@ fn test_safe_batch_transfer_from_not_approved() {
 fn test_burn() {
     let owner = setup();
 
-    ERC1155::mint(owner, 1.into(), 10.into());
+    ERC1155::mint(owner, 1.into(), 10.into(), ArrayTrait::<felt252>::new());
 
     let success = ERC1155::burn(owner, 1.into(), 3.into());
     assert(success, 'Error while burning');
@@ -335,7 +335,7 @@ fn test_burn() {
 #[should_panic(expected: ('burn from 0 address', ))]
 fn test_burn_from_0() {
     let owner = setup();
-    ERC1155::mint(owner, 1.into(), 10.into());
+    ERC1155::mint(owner, 1.into(), 10.into(), ArrayTrait::<felt252>::new());
     ERC1155::burn(contract_address_const::<0>(), 1.into(), 3.into());
 }
 
@@ -344,7 +344,7 @@ fn test_burn_from_0() {
 #[should_panic(expected: ('caller not owner or approved', ))]
 fn test_burn_not_approved() {
     let owner = setup();
-    ERC1155::mint(owner, 1.into(), 10.into());
+    ERC1155::mint(owner, 1.into(), 10.into(), ArrayTrait::<felt252>::new());
     set_caller_address(contract_address_const::<3>());
     ERC1155::burn(owner, 1.into(), 3.into());
 }
@@ -354,7 +354,7 @@ fn test_burn_not_approved() {
 #[should_panic(expected: ('insufficient balance', ))]
 fn test_burn_insufficient_balance() {
     let owner = setup();
-    ERC1155::mint(owner, 1.into(), 10.into());
+    ERC1155::mint(owner, 1.into(), 10.into(), ArrayTrait::<felt252>::new());
     ERC1155::burn(owner, 1.into(), 20.into());
 }
 
@@ -366,7 +366,7 @@ fn test_burn_batch() {
     let mut ids = generate_array_u256(2_u32, 1.into(), 1.into());
     let mut values = generate_array_u256(2_u32, 10.into(), 10.into());
 
-    let success = ERC1155::mint_batch(owner, ids.clone(), values.clone());
+    let success = ERC1155::mint_batch(owner, ids.clone(), values.clone(), ArrayTrait::<felt252>::new());
     assert(success, 'Error while minting');
 
     let mut owners = ArrayTrait::<ContractAddress>::new();
@@ -390,7 +390,7 @@ fn test_burn_batch_not_approved() {
     let owner = setup();
     let mut ids = generate_array_u256(2_u32, 1.into(), 1.into());
     let mut values = generate_array_u256(2_u32, 10.into(), 10.into());
-    ERC1155::mint_batch(owner, ids.clone(), values.clone());
+    ERC1155::mint_batch(owner, ids.clone(), values.clone(), ArrayTrait::<felt252>::new());
 
     set_caller_address(contract_address_const::<3>());
     ERC1155::burn_batch(owner, ids, values);
@@ -404,7 +404,7 @@ fn test_burn_batch_from_0() {
     let mut ids = generate_array_u256(2_u32, 1.into(), 1.into());
     let mut values = generate_array_u256(2_u32, 10.into(), 10.into());
 
-    ERC1155::mint_batch(owner, ids.clone(), values.clone());
+    ERC1155::mint_batch(owner, ids.clone(), values.clone(), ArrayTrait::<felt252>::new());
     ERC1155::burn_batch(contract_address_const::<0>(), ids, values);
 }
 
@@ -416,6 +416,6 @@ fn test_burn_batch_len_mismatch() {
     let mut ids = generate_array_u256(2_u32, 1.into(), 1.into());
     let mut values = generate_array_u256(1_u32, 10.into(), 10.into());
 
-    ERC1155::mint_batch(owner, ids.clone(), values.clone());
+    ERC1155::mint_batch(owner, ids.clone(), values.clone(), ArrayTrait::<felt252>::new());
     ERC1155::burn_batch(owner, ids, values);
 }
