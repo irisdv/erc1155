@@ -311,7 +311,12 @@ mod ERC1155 {
             if _ids.len() == 0_u32 {
                 break ();
             }
-            burn(from_, _ids.pop_front().unwrap(), _values.pop_front().unwrap());
+            let id = _ids.pop_front().unwrap();
+            let value = _values.pop_front().unwrap();
+            let from_balance = balances::read((from_, id));
+            assert(from_balance >= value, 'insufficient balance');
+            balances::write((from_, id), from_balance - value);
+
         };
 
         let operator = get_caller_address();
